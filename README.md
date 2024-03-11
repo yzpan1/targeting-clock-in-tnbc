@@ -1,2 +1,2 @@
 # targeting-clock-in-tnbc
-This repository is associated with the publication "Targeting Circadian Transcription Programs in Triple Negative Breast Camcer"
+This repository contains all the data and code used in the publication "Targeting Circadian Transcription Programs in Triple Negative Breast Camcer"
