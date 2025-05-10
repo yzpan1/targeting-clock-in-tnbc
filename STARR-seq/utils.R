@@ -1,7 +1,7 @@
 # Utility files for motif.R script, created by Yuanzhong Pan (michapan93@gmail.com)
 #
 #
-
+library(data.table)
 
 # remove repeated peaks because of genome alt redundancy
 peak_dedup <- function(peak_list){
@@ -63,7 +63,7 @@ co.occur <- function(count_mat, tflist){
   occurance <- matrix(as.numeric(count_mat > 0), ncol = d)
   cooccur.p <- matrix(nrow = d, ncol = d)
   for (tf1 in 1:d){
-    name_vac[tf1] <- tflist[[tf1]]['name']
+    name_vac[tf1] <- tflist[[tf1]]['altname']
     for (tf2 in 1:d){
       if (sum(occurance[,tf1]) == 0 | sum(occurance[,tf2]) == 0 ){
         cooccur.p[tf1,tf2] <- 1
@@ -163,4 +163,62 @@ cooccur_vec_from_mat <- function(co_mat){
   return(cooccur_vec)
 }
 
+annotate_type <- function(count_mat, type_mat){
+  n_peaks <- dim(count_mat)[1]
+  type_vec <- matrix(length = n_peaks)
+  for (i in 1:n_peaks){
+    annotated_types <- apply(df_peaks, 1, function(count_mat) {
+    match_index <- which(apply(df_types, 1, function(type_row) identical(peak_row, type_row)))
+    
+    if (length(match_index) == 1) {
+      return(rownames(df_types)[match_index])
+    } else {
+      return(NA)  # or "unmatched", depending on your use case
+    }
+  })
+      if (identical(as.numeric(type_mat[i,]),tf_bin)){
+        one_type <- one_type + peak_mat$pileup[j]
+      }
+    }
+    score_mat[i] <- one_type
+  }
+  return(score_mat)
+}
 
+
+annotate_type <- function(count_mat, type_mat){
+  # Convert to data.table
+  dt_peaks <- as.data.table(count_mat)
+  dt_peaks[, names(dt_peaks) := lapply(.SD, function(x) as.integer(x > 0))]
+  dt_types <- as.data.table(type_mat)
+
+  # Add a row identifier to types (row names as a column)
+  dt_types[, type_id := rownames(type_mat)]
+  
+  # Create a unique string key for each row to speed up matching
+  dt_peaks[, key := do.call(paste, c(.SD, sep = "_"))]
+  dt_peaks[, original_order := .I]
+  dt_types[, key := do.call(paste, c(.SD, sep = "_")), .SDcols = names(type_mat)]
+
+  # Perform a fast join to annotate types
+  dt_annotated <- merge(
+    dt_peaks,
+    dt_types[, .(key, type_id)],
+    by = "key",
+    all.x = TRUE,
+    sort = FALSE
+  )
+  setorder(dt_annotated, original_order)
+  return(dt_annotated$type_id)
+}
+
+
+welch_p <- function(m1, v1, n1, m2, v2, n2) {
+  se <- sqrt(v1/n1 + v2/n2)
+  t_stat <- (m1 - m2) / se
+  df_num <- (v1/n1 + v2/n2)^2
+  df_denom <- ((v1/n1)^2)/(n1 - 1) + ((v2/n2)^2)/(n2 - 1)
+  df <- df_num / df_denom
+  pval <- 2 * pt(-abs(t_stat), df)
+  return(pval)
+}
